@@ -4,3 +4,8 @@ version = "0.1.0"
 authors = ["Jayson Lennon <jay.dub.lennon@gmail.com>"]
 
 [dependencies]
+image = "0.10.4"
+num-complex = "0.1.35"
+
+[dev-dependencies]
+stainless = "*"

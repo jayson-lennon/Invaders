@@ -33,7 +33,13 @@ enum Data {
     Empty,
 }
 
-#[derive(Debug, Copy, Clone)]
+impl Default for Data {
+    fn default() -> Data {
+        Data::Empty
+    }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 struct Point {
     x: i64,
     y: i64,

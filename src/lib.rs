@@ -24,6 +24,7 @@ extern crate image;
 
 use std::fs::File;
 use std::path::Path;
+use std::collections::HashMap;
 
 use image::{GenericImage, Pixel, ImageBuffer};
 
@@ -33,47 +34,104 @@ enum Data {
     Empty,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Point {
-    x: usize,
-    y: usize,
+    x: i64,
+    y: i64,
+}
+
+/// A bounding box. `min` is the upper left point, `max` is the lower right point.
+#[derive(Debug)]
+struct Bounds {
+    min: Point,
+    max: Point,
+}
+
+impl Bounds {
+    /// Determine the size of the bounding box.
+    pub fn dimensions(&self) -> (i64, i64) {
+        let width = self.max.x - self.min.x;
+        let height = self.max.y - self.min.y;
+        (width, height)
+    }
+
+    /// Create new `Bound`s from a collection of `Point`s.
+    pub fn from_points<'a, T>(points: T) -> Bounds
+        where T: Iterator<Item = &'a Point>
+    {
+        let mut xmin = 0;
+        let mut ymin = 0;
+        let mut xmax = 0;
+        let mut ymax = 0;
+        let mut initialized = false;
+
+        for point in points {
+            if initialized {
+                // Handle x-coordinates.
+                if point.x < xmin {
+                    xmin = point.x
+                }
+                if point.x > xmax {
+                    xmax = point.x
+                }
+                // Handle y-coordinates.
+                if point.y < ymin {
+                    ymin = point.y
+                }
+                if point.y > ymax {
+                    ymax = point.y
+                }
+            } else {
+                // Set up initial values.
+                xmin = point.x;
+                ymin = point.y;
+                xmax = point.x;
+                ymax = point.y;
+                initialized = true;
+            }
+        }
+
+        let min = Point { x: xmin, y: ymin };
+        let max = Point { x: xmax, y: ymax };
+
+        Bounds {
+            min: min,
+            max: max,
+        }
+    }
 }
 
 #[derive(Debug)]
 struct Grid {
-    plane: Vec<Data>,
-    dimensions: Point,
+    plane: HashMap<(i64, i64), Data>,
 }
 
 impl Grid {
-    fn new(x: usize, y: usize) -> Grid {
-        let mut plane = Vec::new();
-        plane.reserve_exact(x * y);
-
-        let mut i = 0;
-        while i < (x * y) {
-            plane.push(Data::Empty);
-            i += 1;
-        }
-
-        Grid {
-            plane: plane,
-            dimensions: Point { x: x, y: y },
-        }
+    pub fn new() -> Grid {
+        Grid { plane: HashMap::new() }
     }
 
-    fn get(&self, x: usize, y: usize) -> Option<&Data> {
-        self.plane.get((x * self.dimensions.x) + y)
+    /// Gets coordinate `Data` at (x,y). Returns None if coordinate does not exist, otherwise
+    /// returns a reference to `Data`.
+    pub fn get(&self, x: i64, y: i64) -> Option<&Data> {
+        self.plane.get(&(x, y))
     }
 
+    /// Sets coordinate (x,y) to `Data`. Returns None if the coordinate added is a new coordinate.
+    /// Returns the old `Data` from the coordinate if the coordinate was previously added.
+    pub fn set(&mut self, x: i64, y: i64, data: Data) -> Option<Data> {
+        self.plane.insert((x, y), data)
+    }
 
-    fn set(&mut self, x: usize, y: usize, data: Data) -> bool {
-        if let Some(cell) = self.plane.get_mut((x * self.dimensions.x) + y) {
-            *cell = data;
-            return true;
-        } else {
-            return false;
-        }
+    /// Calculates a bounding box containing the pixels of the `Grid`.
+    pub fn bounds(&self) -> Bounds {
+        let points = self.plane.keys().map(|p| Point { x: p.0, y: p.0 }).collect::<Vec<Point>>();
+        Bounds::from_points(points.iter())
+    }
+
+    /// Calculates the size of the bounding box containing the pixels of the `Grid`.
+    pub fn size(&self) -> (i64, i64) {
+        self.bounds().dimensions()
     }
 }
 
@@ -86,7 +144,7 @@ mod GridTool {
 
         describe! gridtool {
             before_each {
-                let grid = Grid::new(3,3);
+                let grid = Grid::new();
             }
             it "does nothing" {
                 
@@ -96,15 +154,13 @@ mod GridTool {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use super::{Grid, Data};
+    use super::{Grid, Data, Point, Bounds};
 
     describe! grid {
         before_each {
-            let grid = Grid::new(3,3);
+            let grid = Grid::new();
         }
         
         it "adds and reads data" {
@@ -115,16 +171,35 @@ mod tests {
             assert_eq!(*read_data, Data::RGBA(1,1,1,1));
         }
 
-        it "properly handles out of range get operation" {
+        it "properly handles getting invalid data" {
             let read_data = grid.get(9,9);
             assert_eq!(read_data.is_some(), false);
         }
+    }
 
-        it "properly handles out of range set operation" {
-            let mut grid = grid;
-            let data = Data::RGBA(1,1,1,1);
-            let op = grid.set(9,9,data);
-            assert_eq!(op, false);
+    describe! bounds {
+        before_each {
+            let grid = Grid::new();
+        }
+
+        it "calculates dimensions" {
+            let min = Point { x:0, y:0 };
+            let max = Point { x:2, y:1 };
+            let bounds = Bounds { min: min, max: max };
+            let dimensions = bounds.dimensions();
+            assert_eq!(dimensions.0, 2);
+            assert_eq!(dimensions.1, 1);
+        }
+
+        it "determines bounding points from a collection" {
+            let min = Point { x:0, y:0 };
+            let max = Point { x:2, y:1 };
+            let points = vec![max, min];
+            let bounds = Bounds::from_points(points.iter());
+            assert_eq!(bounds.min.x, 0);
+            assert_eq!(bounds.min.y, 0);
+            assert_eq!(bounds.max.x, 2);
+            assert_eq!(bounds.max.y, 1);
         }
     }
 }

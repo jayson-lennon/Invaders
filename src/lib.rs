@@ -138,6 +138,17 @@ impl Grid {
     pub fn size(&self) -> (i64, i64) {
         self.bounds().dimensions()
     }
+
+    /// Translates the `Point`s in the `Grid` by (x,y).
+    pub fn translate(&mut self, x: i64, y: i64) {
+        let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
+        for (point, data) in self.plane.iter() {
+            let x_new = point.0 + x;
+            let y_new = point.1 + y;
+            new_plane.insert((x_new, y_new), *data);
+        }
+        self.plane = new_plane;
+    }
 }
 
 mod GridTool {

@@ -15,7 +15,6 @@
 #![feature(plugin)]
 #![cfg_attr(test, plugin(stainless))]
 
-#![feature(conservative_impl_trait)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]

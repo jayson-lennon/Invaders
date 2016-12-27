@@ -183,8 +183,8 @@ mod tests {
 
         it "reports proper bounding box" {
             let mut grid = grid;
-            let data1 = Data::RGBA(1,1,1,1);
-            let data2 = Data::RGBA(1,1,1,1);
+            let data1: Data = Default::default();
+            let data2: Data = Default::default();
             grid.set(1,1,data1);
             grid.set(2,2,data2);
             let bounds = grid.bounds();
@@ -196,8 +196,8 @@ mod tests {
 
         it "reports proper dimensions" {
             let mut grid = grid;
-            let data1 = Data::RGBA(1,1,1,1);
-            let data2 = Data::RGBA(1,1,1,1);
+            let data1: Data = Default::default();
+            let data2: Data = Default::default();
             grid.set(1,1,data1);
             grid.set(2,3,data2);
             let dimensions = grid.size();

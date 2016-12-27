@@ -175,6 +175,31 @@ mod tests {
             let read_data = grid.get(9,9);
             assert_eq!(read_data.is_some(), false);
         }
+
+        it "reports proper bounding box" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(1,1,1,1);
+            grid.set(1,1,data1);
+            grid.set(2,2,data2);
+            let bounds = grid.bounds();
+            assert_eq!(bounds.min.x, 1);
+            assert_eq!(bounds.min.y, 1);
+            assert_eq!(bounds.max.x, 2);
+            assert_eq!(bounds.max.y, 2);
+        }
+
+        it "reports proper dimensions" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(1,1,1,1);
+            grid.set(1,1,data1);
+            grid.set(2,3,data2);
+            let dimensions = grid.size();
+            assert_eq!(dimensions.0, 1);
+            assert_eq!(dimensions.1, 2);
+        }
+
     }
 
     describe! bounds {

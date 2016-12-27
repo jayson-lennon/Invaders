@@ -279,6 +279,48 @@ mod tests {
             assert_eq!(*point2, Data::RGBA(2,2,2,2));
         }
 
+        it "horizontally flips the grid" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+            let data3 = Data::RGBA(3,3,3,3);
+            let data4 = Data::RGBA(4,4,4,4);
+            grid.set(1,1,data1);
+            grid.set(2,1,data2);
+            grid.set(3,1,data3);
+            grid.set(4,1,data4);
+            grid.flip_horizontally();
+            let point1 = grid.get(1, 1).unwrap();
+            let point2 = grid.get(2, 1).unwrap();
+            let point3 = grid.get(3, 1).unwrap();
+            let point4 = grid.get(4, 1).unwrap();
+            assert_eq!(*point1, data4);
+            assert_eq!(*point2, data3);
+            assert_eq!(*point3, data2);
+            assert_eq!(*point4, data1);
+        }
+
+        it "vertically flips the grid" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+            let data3 = Data::RGBA(3,3,3,3);
+            let data4 = Data::RGBA(4,4,4,4);
+            grid.set(1,1,data1);
+            grid.set(1,2,data2);
+            grid.set(1,3,data3);
+            grid.set(1,4,data4);
+            grid.flip_vertically();
+            let point1 = grid.get(1, 1).unwrap();
+            let point2 = grid.get(1, 2).unwrap();
+            let point3 = grid.get(1, 3).unwrap();
+            let point4 = grid.get(1, 4).unwrap();
+            assert_eq!(*point1, data4);
+            assert_eq!(*point2, data3);
+            assert_eq!(*point3, data2);
+            assert_eq!(*point4, data1);
+        }
+
 
     }
 

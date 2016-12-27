@@ -150,14 +150,8 @@ impl Grid {
         self.plane = new_plane;
     }
 
-    /// Flip the entire `Grid` horizontally.
-    pub fn flip_horizontally(&mut self) {
-        let mut points =
-            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
-
-        // Want to sort by x-coordinate since this is a horizontal flip.
-        points.sort_by_key(|p| p.x);
-
+    /// Does the gruntwork for flipping the `Grid`.
+    fn do_flip(&mut self, points: Vec<Point>) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
 
         // Need a reverse and forward iterator for interchanging of point coordinates.
@@ -182,6 +176,28 @@ impl Grid {
             i += 1;
         }
         self.plane = new_plane;
+    }
+
+    /// Flip the entire `Grid` horizontally.
+    pub fn flip_horizontally(&mut self) {
+        let mut points =
+            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+
+        // Want to sort by x-coordinate since this is a horizontal flip.
+        points.sort_by_key(|p| p.x);
+
+        self.do_flip(points);
+    }
+
+    /// Flip the entire `Grid` vertically..
+    pub fn flip_vertically(&mut self) {
+        let mut points =
+            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+
+        // Want to sort by y-coordinate since this is a vertical flip.
+        points.sort_by_key(|p| p.y);
+
+        self.do_flip(points);
     }
 }
 

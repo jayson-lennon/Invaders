@@ -149,6 +149,40 @@ impl Grid {
         }
         self.plane = new_plane;
     }
+
+    /// Flip the entire `Grid` horizontally.
+    pub fn flip_horizontally(&mut self) {
+        let mut points =
+            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+
+        // Want to sort by x-coordinate since this is a horizontal flip.
+        points.sort_by_key(|p| p.x);
+
+        let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
+
+        // Need a reverse and forward iterator for interchanging of point coordinates.
+        let mut points_reversed = points.iter().rev();
+        let mut points = points.iter();
+
+        let mut i = 0;
+        let max_iterations = self.plane.len();
+
+        while i < max_iterations {
+            // Get the source point coordinates.
+            if let Some(src) = points.next() {
+                // Get the target point coordinates.
+                if let Some(target) = points_reversed.next() {
+                    // Get the data from the source point.
+                    if let Some(data) = self.get(src.x, src.y) {
+                        // Add the source data to the target point coordinates.
+                        new_plane.insert((target.x, target.y), *data);
+                    }
+                }
+            }
+            i += 1;
+        }
+        self.plane = new_plane;
+    }
 }
 
 mod GridTool {

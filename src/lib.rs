@@ -141,13 +141,63 @@ impl Grid {
 
     /// Translates the `Point`s in the `Grid` by (x,y).
     pub fn translate(&mut self, x: i64, y: i64) {
-        let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
+        let mut new_plane = HashMap::new();
         for (point, data) in self.plane.iter() {
             let x_new = point.0 + x;
             let y_new = point.1 + y;
             new_plane.insert((x_new, y_new), *data);
         }
         self.plane = new_plane;
+    }
+
+    /// Does the gruntwork for flipping the `Grid`.
+    fn do_flip(&mut self, points: Vec<Point>) {
+        let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
+
+        // Need a reverse and forward iterator for interchanging of point coordinates.
+        let mut points_reversed = points.iter().rev();
+        let mut points = points.iter();
+
+        let mut i = 0;
+        let max_iterations = self.plane.len();
+
+        while i < max_iterations {
+            // Get the source point coordinates.
+            if let Some(src) = points.next() {
+                // Get the target point coordinates.
+                if let Some(target) = points_reversed.next() {
+                    // Get the data from the source point.
+                    if let Some(data) = self.get(src.x, src.y) {
+                        // Add the source data to the target point coordinates.
+                        new_plane.insert((target.x, target.y), *data);
+                    }
+                }
+            }
+            i += 1;
+        }
+        self.plane = new_plane;
+    }
+
+    /// Flip the entire `Grid` horizontally.
+    pub fn flip_horizontally(&mut self) {
+        let mut points =
+            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+
+        // Want to sort by x-coordinate since this is a horizontal flip.
+        points.sort_by_key(|p| p.x);
+
+        self.do_flip(points);
+    }
+
+    /// Flip the entire `Grid` vertically..
+    pub fn flip_vertically(&mut self) {
+        let mut points =
+            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+
+        // Want to sort by y-coordinate since this is a vertical flip.
+        points.sort_by_key(|p| p.y);
+
+        self.do_flip(points);
     }
 }
 
@@ -227,6 +277,48 @@ mod tests {
             let point2 = grid.get(3, 2).unwrap();
             assert_eq!(*point1, Data::RGBA(1,1,1,1));
             assert_eq!(*point2, Data::RGBA(2,2,2,2));
+        }
+
+        it "horizontally flips the grid" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+            let data3 = Data::RGBA(3,3,3,3);
+            let data4 = Data::RGBA(4,4,4,4);
+            grid.set(1,1,data1);
+            grid.set(2,1,data2);
+            grid.set(3,1,data3);
+            grid.set(4,1,data4);
+            grid.flip_horizontally();
+            let point1 = grid.get(1, 1).unwrap();
+            let point2 = grid.get(2, 1).unwrap();
+            let point3 = grid.get(3, 1).unwrap();
+            let point4 = grid.get(4, 1).unwrap();
+            assert_eq!(*point1, data4);
+            assert_eq!(*point2, data3);
+            assert_eq!(*point3, data2);
+            assert_eq!(*point4, data1);
+        }
+
+        it "vertically flips the grid" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+            let data3 = Data::RGBA(3,3,3,3);
+            let data4 = Data::RGBA(4,4,4,4);
+            grid.set(1,1,data1);
+            grid.set(1,2,data2);
+            grid.set(1,3,data3);
+            grid.set(1,4,data4);
+            grid.flip_vertically();
+            let point1 = grid.get(1, 1).unwrap();
+            let point2 = grid.get(1, 2).unwrap();
+            let point3 = grid.get(1, 3).unwrap();
+            let point4 = grid.get(1, 4).unwrap();
+            assert_eq!(*point1, data4);
+            assert_eq!(*point2, data3);
+            assert_eq!(*point3, data2);
+            assert_eq!(*point4, data1);
         }
 
 

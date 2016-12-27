@@ -216,6 +216,20 @@ mod tests {
             assert_eq!(dimensions.1, 2);
         }
 
+        it "translates coordinates" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+            grid.set(1,1,data1);
+            grid.set(2,3,data2);
+            grid.translate(1, -1);
+            let point1 = grid.get(2, 0).unwrap();
+            let point2 = grid.get(3, 2).unwrap();
+            assert_eq!(*point1, Data::RGBA(1,1,1,1));
+            assert_eq!(*point2, Data::RGBA(2,2,2,2));
+        }
+
+
     }
 
     describe! bounds {

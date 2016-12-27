@@ -125,7 +125,7 @@ impl Grid {
 
     /// Calculates a bounding box containing the pixels of the `Grid`.
     pub fn bounds(&self) -> Bounds {
-        let points = self.plane.keys().map(|p| Point { x: p.0, y: p.0 }).collect::<Vec<Point>>();
+        let points = self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
         Bounds::from_points(points.iter())
     }
 

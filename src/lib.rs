@@ -27,7 +27,7 @@ use std::collections::HashMap;
 
 use image::{GenericImage, Pixel, ImageBuffer};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Data {
     RGBA(u32, u32, u32, u32),
     Empty,

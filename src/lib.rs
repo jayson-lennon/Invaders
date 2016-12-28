@@ -159,6 +159,21 @@ impl Grid {
         self.translate_by(tx, ty);
     }
 
+    /// Merge another `Grid` into this `Grid` at the provided (x,y) coordinates. The origin of the
+    /// `Grid` being added is the upper left corner of a bounding box encompassing all `Point`s
+    /// in the `Grid`.
+    pub fn merge_at(&mut self, grid: &Grid, x: i64, y: i64) {
+        let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
+        unimplemented!()
+    }
+
+    /// Merge another `Grid` into this `Grid`.
+    pub fn merge(&mut self, grid: &Grid) {
+        for (point, data) in grid.plane.iter() {
+            self.plane.insert(*point, *data);
+        }
+    }
+
     /// Does the gruntwork for flipping the `Grid`.
     fn do_flip(&mut self, points: Vec<Point>) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();

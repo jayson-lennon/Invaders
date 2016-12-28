@@ -174,7 +174,8 @@ impl Grid {
         }
     }
 
-    /// Does the gruntwork for flipping the `Grid`.
+    /// Does the gruntwork for flipping the `Grid`. Points must be pre-sorted on the x or y
+    /// coordinate (depending on whether flipping horizontally or vertically).
     fn do_flip(&mut self, points: Vec<Point>) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
 

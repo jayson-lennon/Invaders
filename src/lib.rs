@@ -106,7 +106,7 @@ impl Bounds {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Grid {
     plane: HashMap<(i64, i64), Data>,
 }
@@ -140,9 +140,9 @@ impl Grid {
     }
 
     /// Translates the `Point`s in the `Grid` by (x,y).
-    pub fn translate(&mut self, x: i64, y: i64) {
+    pub fn translate_by(&mut self, x: i64, y: i64) {
         let mut new_plane = HashMap::new();
-        for (point, data) in self.plane.iter() {
+        for (point, data) in &self.plane {
             let x_new = point.0 + x;
             let y_new = point.1 + y;
             new_plane.insert((x_new, y_new), *data);
@@ -150,7 +150,33 @@ impl Grid {
         self.plane = new_plane;
     }
 
-    /// Does the gruntwork for flipping the `Grid`.
+    /// Translates the `Point`s in the `Grid` to (x,y). The origin is the upper left coordinate
+    /// of a bounding box encompassing all `Point`s.
+    pub fn translate_to(&mut self, x: i64, y: i64) {
+        let bounds = self.bounds();
+        let tx = x - bounds.min.x;
+        let ty = y - bounds.min.y;
+        self.translate_by(tx, ty);
+    }
+
+    /// Merge another `Grid` into this `Grid` at the provided (x,y) coordinates. The origin of the
+    /// `Grid` being added is the upper left corner of a bounding box encompassing all `Point`s
+    /// in the `Grid`.
+    pub fn merge_at(&mut self, grid: &Grid, x: i64, y: i64) {
+        let mut translated_grid = grid.clone();
+        translated_grid.translate_to(x, y);
+        self.merge(&translated_grid);
+    }
+
+    /// Merge another `Grid` into this `Grid`.
+    pub fn merge(&mut self, grid: &Grid) {
+        for (point, data) in grid.plane.iter() {
+            self.plane.insert(*point, *data);
+        }
+    }
+
+    /// Does the gruntwork for flipping the `Grid`. Points must be pre-sorted on the x or y
+    /// coordinate (depending on whether flipping horizontally or vertically).
     fn do_flip(&mut self, points: Vec<Point>) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
 
@@ -266,17 +292,30 @@ mod tests {
             assert_eq!(dimensions.1, 2);
         }
 
-        it "translates coordinates" {
+        it "translates by coordinates" {
             let mut grid = grid;
             let data1 = Data::RGBA(1,1,1,1);
             let data2 = Data::RGBA(2,2,2,2);
             grid.set(1,1,data1);
             grid.set(2,3,data2);
-            grid.translate(1, -1);
+            grid.translate_by(1, -1);
             let point1 = grid.get(2, 0).unwrap();
             let point2 = grid.get(3, 2).unwrap();
-            assert_eq!(*point1, Data::RGBA(1,1,1,1));
-            assert_eq!(*point2, Data::RGBA(2,2,2,2));
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+        }
+
+        it "translates to coordinates" {
+            let mut grid = grid;
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+            grid.set(1,1,data1);
+            grid.set(2,3,data2);
+            grid.translate_to(0, 0);
+            let point1 = grid.get(0, 0).unwrap();
+            let point2 = grid.get(1, 2).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
         }
 
         it "horizontally flips the grid" {
@@ -321,6 +360,39 @@ mod tests {
             assert_eq!(*point4, data1);
         }
 
+        it "merges another grid" {
+            let mut grid = grid;
+            let mut add_grid = Grid::new();
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+
+            add_grid.set(1, 1, data1);
+            grid.set(2,2, data2);
+
+            grid.merge(&add_grid);
+
+            let point1 = grid.get(1,1).unwrap();
+            let point2 = grid.get(2,2).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+        }
+
+        it "merges another grid at a coordinate" {
+            let mut grid = grid;
+            let mut add_grid = Grid::new();
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+
+            add_grid.set(1, 1, data1);
+            grid.set(2,2, data2);
+
+            grid.merge_at(&add_grid, 0, 0);
+
+            let point1 = grid.get(0,0).unwrap();
+            let point2 = grid.get(2,2).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+        }
 
     }
 

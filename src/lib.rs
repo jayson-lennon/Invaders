@@ -142,7 +142,7 @@ impl Grid {
     /// Translates the `Point`s in the `Grid` by (x,y).
     pub fn translate_by(&mut self, x: i64, y: i64) {
         let mut new_plane = HashMap::new();
-        for (point, data) in self.plane.iter() {
+        for (point, data) in &self.plane {
             let x_new = point.0 + x;
             let y_new = point.1 + y;
             new_plane.insert((x_new, y_new), *data);

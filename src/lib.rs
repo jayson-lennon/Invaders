@@ -359,6 +359,41 @@ mod tests {
             assert_eq!(*point3, data2);
             assert_eq!(*point4, data1);
         }
+
+        it "merges another grid" {
+            let mut grid = grid;
+            let mut add_grid = Grid::new();
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+
+            add_grid.set(1, 1, data1);
+            grid.set(2,2, data2);
+
+            grid.merge(&add_grid);
+
+            let point1 = grid.get(1,1).unwrap();
+            let point2 = grid.get(2,2).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+        }
+
+        it "merges another grid at a coordinate" {
+            let mut grid = grid;
+            let mut add_grid = Grid::new();
+            let data1 = Data::RGBA(1,1,1,1);
+            let data2 = Data::RGBA(2,2,2,2);
+
+            add_grid.set(1, 1, data1);
+            grid.set(2,2, data2);
+
+            grid.merge_at(&add_grid, 0, 0);
+
+            let point1 = grid.get(0,0).unwrap();
+            let point2 = grid.get(2,2).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+        }
+
     }
 
     describe! bounds {

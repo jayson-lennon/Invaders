@@ -163,8 +163,9 @@ impl Grid {
     /// `Grid` being added is the upper left corner of a bounding box encompassing all `Point`s
     /// in the `Grid`.
     pub fn merge_at(&mut self, grid: &Grid, x: i64, y: i64) {
-        let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
-        unimplemented!()
+        let mut translated_grid = grid.clone();
+        translated_grid.translate_to(x, y);
+        self.merge(&translated_grid);
     }
 
     /// Merge another `Grid` into this `Grid`.

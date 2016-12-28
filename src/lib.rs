@@ -106,7 +106,7 @@ impl Bounds {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Grid {
     plane: HashMap<(i64, i64), Data>,
 }

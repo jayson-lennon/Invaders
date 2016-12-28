@@ -164,10 +164,10 @@ impl Grid {
         while i < max_iterations {
             // Get the source point coordinates.
             if let Some(src) = points.next() {
-                // Get the target point coordinates.
-                if let Some(target) = points_reversed.next() {
-                    // Get the data from the source point.
-                    if let Some(data) = self.get(src.x, src.y) {
+                // Get the data from the source point.
+                if let Some(data) = self.get(src.x, src.y) {
+                    // Get the target point coordinates.
+                    if let Some(target) = points_reversed.next() {
                         // Add the source data to the target point coordinates.
                         new_plane.insert((target.x, target.y), *data);
                     }

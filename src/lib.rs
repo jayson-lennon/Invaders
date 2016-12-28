@@ -150,6 +150,15 @@ impl Grid {
         self.plane = new_plane;
     }
 
+    /// Translates the `Point`s in the `Grid` to (x,y). The origin is the upper left coordinate
+    /// of a bounding box encompassing all `Point`s.
+    pub fn translate_to(&mut self, x: i64, y: i64) {
+        let bounds = self.bounds();
+        let tx = x - bounds.min.x;
+        let ty = y - bounds.min.y;
+        self.translate_by(tx, ty);
+    }
+
     /// Does the gruntwork for flipping the `Grid`.
     fn do_flip(&mut self, points: Vec<Point>) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();

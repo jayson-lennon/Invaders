@@ -140,7 +140,7 @@ impl Grid {
     }
 
     /// Translates the `Point`s in the `Grid` by (x,y).
-    pub fn translate(&mut self, x: i64, y: i64) {
+    pub fn translate_by(&mut self, x: i64, y: i64) {
         let mut new_plane = HashMap::new();
         for (point, data) in self.plane.iter() {
             let x_new = point.0 + x;
@@ -266,13 +266,13 @@ mod tests {
             assert_eq!(dimensions.1, 2);
         }
 
-        it "translates coordinates" {
+        it "translates by coordinates" {
             let mut grid = grid;
             let data1 = Data::RGBA(1,1,1,1);
             let data2 = Data::RGBA(2,2,2,2);
             grid.set(1,1,data1);
             grid.set(2,3,data2);
-            grid.translate(1, -1);
+            grid.translate_by(1, -1);
             let point1 = grid.get(2, 0).unwrap();
             let point2 = grid.get(3, 2).unwrap();
             assert_eq!(*point1, Data::RGBA(1,1,1,1));

@@ -324,6 +324,16 @@ pub mod ImageTool {
         image::ImageRgba8(imgbuf).save(fh, image::PNG)
     }
 
+    pub fn save_grid(mut fh: File,
+                     grid: &Grid,
+                     width: u32,
+                     height: u32)
+                     -> Result<(), image::ImageError> {
+        let ref mut fh = fh;
+        let buf = ImageBuffer::from_grid(grid, (width, height));
+        image::ImageRgba8(buf).save(fh, image::PNG)
+    }
+
     #[cfg(test)]
     mod tests {
         use ImageTool;

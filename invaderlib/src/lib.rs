@@ -317,8 +317,8 @@ pub mod ImageTool {
         File::create(&Path::new(path))
     }
 
-    pub fn save_png(imgbuf: ImageBuffer<image::Rgba<u8>, Vec<u8>>,
-                    mut fh: File)
+    pub fn save_png(mut fh: File,
+                    imgbuf: ImageBuffer<image::Rgba<u8>, Vec<u8>>)
                     -> Result<(), image::ImageError> {
         let ref mut fh = fh;
         image::ImageRgba8(imgbuf).save(fh, image::PNG)

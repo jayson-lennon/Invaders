@@ -28,8 +28,8 @@ use std::collections::HashMap;
 use image::{GenericImage, Pixel, ImageBuffer};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum Data {
-    RGBA(u32, u32, u32, u32),
+pub enum Data {
+    RGBA(u8, u8, u8, u8),
     Empty,
 }
 
@@ -40,24 +40,27 @@ impl Default for Data {
 }
 
 #[derive(Debug, Copy, Clone, Default)]
-struct Point {
+pub struct Point {
     x: i64,
     y: i64,
 }
 
 /// A bounding box. `min` is the upper left point, `max` is the lower right point.
 #[derive(Debug)]
-struct Bounds {
+pub struct Bounds {
     min: Point,
     max: Point,
 }
 
+pub trait OutputPx {
+    fn get_pixel_at(&self, x: u32, y: u32) -> Data;
+}
 impl Bounds {
     /// Determine the size of the bounding box.
     pub fn dimensions(&self) -> (i64, i64) {
         let width = self.max.x - self.min.x;
         let height = self.max.y - self.min.y;
-        (width, height)
+        (width + 1, height + 1)
     }
 
     /// Create new `Bound`s from a collection of `Point`s.
@@ -107,7 +110,7 @@ impl Bounds {
 }
 
 #[derive(Debug, Clone)]
-struct Grid {
+pub struct Grid {
     plane: HashMap<(i64, i64), Data>,
 }
 
@@ -227,6 +230,15 @@ impl Grid {
     }
 }
 
+impl OutputPx for Grid {
+    fn get_pixel_at(&self, x: u32, y: u32) -> Data {
+        match self.get(x as i64, y as i64) {
+            Some(data) => return *data,
+            None => return Data::RGBA(0, 0, 0, 255),
+        }
+    }
+}
+
 mod GridTool {
     use super::{Grid, Data};
 
@@ -243,6 +255,115 @@ mod GridTool {
             }
         }
 
+    }
+}
+
+mod ImageTool {
+    use std::fs::File;
+    use std::io;
+    use std::path::Path;
+    use std::collections::HashMap;
+
+    extern crate image;
+    use image::{GenericImage, Pixel, ImageBuffer, Primitive};
+
+    use super::{OutputPx, Data, Point, Grid};
+
+    pub trait GridExporter {
+        fn from_grid<T>(pixgrid: &T,
+                        src_size: (u32, u32))
+                        -> ImageBuffer<image::Rgba<u8>, Vec<u8>>
+            where T: OutputPx;
+    }
+
+    impl GridExporter for ImageBuffer<image::Rgba<u8>, Vec<u8>> {
+        fn from_grid<T>(pixgrid: &T, src_size: (u32, u32)) -> ImageBuffer<image::Rgba<u8>, Vec<u8>>
+            where T: OutputPx
+        {
+            let (imgx, imgy) = src_size;
+            // Create a new ImgBuf with width: imgx and height: imgy
+            let mut imgbuf = image::ImageBuffer::new(imgx, imgy);
+            let mut x = 0;
+            let mut y = 0;
+            // Iterate through all pixels.
+            loop {
+                match pixgrid.get_pixel_at(x, y) {
+                    Data::RGBA(r, g, b, a) => {
+                        let px = image::Rgba([r, g, b, a]);
+                        // Transform y-coordinate from y-axis up to y-axis down.
+                        let y_coord = imgy - y - 1;
+                        imgbuf.put_pixel(x as u32, y_coord as u32, px);
+                    }
+                    _ => (),
+                }
+                x += 1;
+                // Check to see if we hit the rightmost x coordinate.
+                if x == imgx {
+                    // If we did, start x-coordinate at leftmost for next row.
+                    x = 0;
+                    // Increment y-coordinate to start next row,
+                    y += 1;
+                    // Bail out once we hit the maximum y-coordinate.
+                    if y == imgy {
+                        break;
+                    }
+                }
+            }
+            imgbuf
+        }
+    }
+
+    pub fn new_file(path: &str) -> Result<File, io::Error> {
+        File::create(&Path::new(path))
+    }
+
+    pub fn save_png(imgbuf: ImageBuffer<image::Rgba<u8>, Vec<u8>>,
+                    mut fh: File)
+                    -> Result<(), image::ImageError> {
+        let ref mut fh = fh;
+        image::ImageRgba8(imgbuf).save(fh, image::PNG)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use ImageTool;
+        use image::ImageBuffer;
+        use super::GridExporter;
+        use super::super::{Grid, Data, Point, Bounds};
+
+        describe! imagetool {
+            before_each {
+                let grid = Grid::new();
+            }
+
+            // Grid pixels are stored y-axis up. ImageBuffer pixels are stored y-axis down.
+            // This test ensures that the conversion from grid to image coordinates are correctly
+            // mapped so the image isn't exported upside-down.
+            it "converts a Grid to an image buffer" {
+                let mut grid = grid;
+                let white = Data::RGBA(255,255,255,255);
+                let red = Data::RGBA(255,0,0,255);
+                grid.set(0,0,red);
+                grid.set(1,1,white);
+                grid.set(2,2,red);
+                let size = grid.bounds().dimensions();
+                let buf = ImageBuffer::from_grid(&grid, (size.0 as u32, size.1 as u32));
+                let pix_00 = buf.get_pixel(0,2);
+                let pix_11 = buf.get_pixel(1,1);
+                let pix_22 = buf.get_pixel(2,0);
+                assert_eq!(pix_00.data[0], 255);
+                assert_eq!(pix_00.data[1], 0);
+                assert_eq!(pix_00.data[2], 0);
+
+                assert_eq!(pix_11.data[0], 255);
+                assert_eq!(pix_11.data[1], 255);
+                assert_eq!(pix_11.data[2], 255);
+
+                assert_eq!(pix_22.data[0], 255);
+                assert_eq!(pix_22.data[1], 0);
+                assert_eq!(pix_22.data[2], 0);
+            }
+        }
     }
 }
 
@@ -288,8 +409,8 @@ mod tests {
             grid.set(1,1,data1);
             grid.set(2,3,data2);
             let dimensions = grid.size();
-            assert_eq!(dimensions.0, 1);
-            assert_eq!(dimensions.1, 2);
+            assert_eq!(dimensions.0, 2);
+            assert_eq!(dimensions.1, 3);
         }
 
         it "translates by coordinates" {
@@ -406,8 +527,8 @@ mod tests {
             let max = Point { x:2, y:1 };
             let bounds = Bounds { min: min, max: max };
             let dimensions = bounds.dimensions();
-            assert_eq!(dimensions.0, 2);
-            assert_eq!(dimensions.1, 1);
+            assert_eq!(dimensions.0, 3);
+            assert_eq!(dimensions.1, 2);
         }
 
         it "determines bounding points from a collection" {

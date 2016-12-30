@@ -258,7 +258,7 @@ mod GridTool {
     }
 }
 
-mod ImageTool {
+pub mod ImageTool {
     use std::fs::File;
     use std::io;
     use std::path::Path;
@@ -367,7 +367,7 @@ mod ImageTool {
     }
 }
 
-mod Gen {
+pub mod Gen {
     extern crate rand;
     use Gen::rand::{Rng, SeedableRng, StdRng, ThreadRng, thread_rng};
     use Gen::rand::distributions::{Range, IndependentSample};

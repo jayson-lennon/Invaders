@@ -239,6 +239,50 @@ impl OutputPx for Grid {
     }
 }
 
+mod CellTool {
+    pub fn is_adjacent(source: (i64, i64), target: (i64, i64)) -> bool {
+        let (xs, ys) = (source.0, source.1);
+        let (xt, yt) = (target.0, target.1);
+
+        let x_distance = (xs - xt).abs();
+        let y_distance = (ys - yt).abs();
+
+        // The coordinate cannot be more than 1 space away.
+        if x_distance > 1 || y_distance > 1 {
+            return false;
+        }
+
+        // For a cell to be adjacent, only one of the coordinates may be 1 space away.
+        // Of both are 1 space away, then it is a corner cell.
+        if x_distance == 1 && y_distance == 1 {
+            return false;
+        }
+
+        return true;
+
+    }
+
+    pub fn get_adjacent_coords(target: (i64, i64)) -> Vec<(i64, i64)> {}
+
+    #[cfg(test)]
+    mod tests {
+        use super::is_adjacent;
+        describe! celltool {
+            it "determines if a cell is adjacent" {
+                let source = (1,1);
+                let adjacent = (1,2);
+                assert_eq!(is_adjacent(source, adjacent), true);
+            }
+            it "determines if a non-adjacent cell is non-adjacent" {
+                let source = (1,1);
+                let nonadjacent = (2,2);
+                assert_eq!(is_adjacent(source, nonadjacent), false);
+            }
+        }
+    }
+
+}
+
 mod GridTool {
     use super::{Grid, Data};
 

@@ -239,7 +239,30 @@ impl OutputPx for Grid {
     }
 }
 
+/// Helper functions for working with cartesian coordinates.
 mod CellTool {
+
+    /// Determines the how many "steps" must be taken to reach the target coordinates from the
+    /// source coordinates.
+    /// Ex: (1,1) -> (0,0) = (-1,-1)
+    pub fn offset(source: (i64, i64), target: (i64, i64)) -> (i64, i64) {
+        let (xs, ys) = (source.0, source.1);
+        let (xt, yt) = (target.0, target.1);
+
+        let x_offset = xt - xs;
+        let y_offset = yt - ys;
+
+        (x_offset, y_offset)
+    }
+
+    pub fn distance(source: (i64, i64), target: (i64, i64)) -> f32 {
+        let (xs, ys) = (source.0 as f32, source.1 as f32);
+        let (xt, yt) = (target.0 as f32, target.1 as f32);
+
+        ((xt - xs).powi(2) + (yt - ys).powi(2)).sqrt()
+    }
+
+    /// Determines if the target coordinates are adjacent to the source coordinates.
     pub fn is_adjacent(source: (i64, i64), target: (i64, i64)) -> bool {
         let (xs, ys) = (source.0, source.1);
         let (xt, yt) = (target.0, target.1);
@@ -247,36 +270,113 @@ mod CellTool {
         let x_distance = (xs - xt).abs();
         let y_distance = (ys - yt).abs();
 
-        // The coordinate cannot be more than 1 space away.
+        // The coordinates cannot be more than 1 space away.
         if x_distance > 1 || y_distance > 1 {
             return false;
         }
 
-        // For a cell to be adjacent, only one of the coordinates may be 1 space away.
-        // Of both are 1 space away, then it is a corner cell.
+        // For a cell to be adjacent, only the x or y coordinate may be 1 space away.
+        // If both are 1 space away, then it is a corner cell.
         if x_distance == 1 && y_distance == 1 {
             return false;
         }
 
         return true;
-
     }
 
-    pub fn get_adjacent_coords(target: (i64, i64)) -> Vec<(i64, i64)> {}
+    /// Gets all coordinates that are directly adjacent to the target coordinates.
+    pub fn get_adjacent_coords(target: (i64, i64)) -> Vec<(i64, i64)> {
+        let mut coords: Vec<(i64, i64)> = Vec::new();
+        coords.push((target.0 - 1, target.1));
+        coords.push((target.0 + 1, target.1));
+        coords.push((target.0, target.1 - 1));
+        coords.push((target.0, target.1 + 1));
+        coords
+    }
+
+    /// Gets all coordinates that are corners to the target coordinates.
+    pub fn get_corner_coords(target: (i64, i64)) -> Vec<(i64, i64)> {
+        let mut coords: Vec<(i64, i64)> = Vec::new();
+        coords.push((target.0 - 1, target.1 - 1));
+        coords.push((target.0 - 1, target.1 + 1));
+        coords.push((target.0 + 1, target.1 - 1));
+        coords.push((target.0 + 1, target.1 + 1));
+        coords
+    }
+
+    /// Gets all coordinates that are surrounding the target coordinates.
+    pub fn get_surrounding_coords(target: (i64, i64)) -> Vec<(i64, i64)> {
+        let mut surrounding = Vec::new();
+        let mut corners = get_corner_coords(target);
+        let mut adjacent = get_adjacent_coords(target);
+        surrounding.append(&mut corners);
+        surrounding.append(&mut adjacent);
+        surrounding
+    }
+
+
 
     #[cfg(test)]
     mod tests {
-        use super::is_adjacent;
+        use super::{get_adjacent_coords, is_adjacent, get_surrounding_coords, get_corner_coords,
+                    offset, distance};
         describe! celltool {
+
             it "determines if a cell is adjacent" {
                 let source = (1,1);
                 let adjacent = (1,2);
                 assert_eq!(is_adjacent(source, adjacent), true);
             }
+
             it "determines if a non-adjacent cell is non-adjacent" {
                 let source = (1,1);
                 let nonadjacent = (2,2);
                 assert_eq!(is_adjacent(source, nonadjacent), false);
+            }
+
+            it "gets adjacent cell coordinates" {
+                let target = (0,0);
+                let coords = vec![(-1,0),(1,0),(0,-1),(0,1)];
+                let adjacent = get_adjacent_coords(target);
+                assert_eq!(adjacent, coords);
+            }
+
+            it "gets corner cell coordinates" {
+                let target = (0,0);
+                let coords = vec![(-1,-1),(-1,1),(1,-1),(1,1)];
+                let corners = get_corner_coords(target);
+                assert_eq!(corners, coords);
+            }
+
+            it "gets surrounding cell coordinates" {
+                let target = (0,0);
+                /// Surrounding is corners + adjacent, so copy-pasta those tests in that order.
+                let coords = vec![(-1,-1),(-1,1),(1,-1),(1,1),(-1,0),(1,0),(0,-1),(0,1)];
+                let surrounding = get_surrounding_coords(target);
+                assert_eq!(surrounding, coords);
+            }
+
+            it "calculates negative offsets" {
+                let source = (0,0);
+                let target = (-2,-2);
+                let offset = offset(source, target);
+                assert_eq!(offset.0, -2);
+                assert_eq!(offset.1, -2);
+            }
+
+            it "calculates positive offsets" {
+                let source = (0,0);
+                let target = (2,2);
+                let offset = offset(source, target);
+                assert_eq!(offset.0, 2);
+                assert_eq!(offset.1, 2);
+            }
+
+            it "calculates distance" {
+                let source = (0,0);
+                let target = (3,2);
+                let d = distance(source, target);
+                assert_eq!(d, 13_f32.sqrt());
             }
         }
     }

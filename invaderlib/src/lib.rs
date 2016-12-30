@@ -239,7 +239,9 @@ impl OutputPx for Grid {
     }
 }
 
+/// Helper functions for working with cartesian coordinates.
 mod CellTool {
+    /// Determines if the target coordinate is adjacent to the source coordinate.
     pub fn is_adjacent(source: (i64, i64), target: (i64, i64)) -> bool {
         let (xs, ys) = (source.0, source.1);
         let (xt, yt) = (target.0, target.1);
@@ -259,24 +261,75 @@ mod CellTool {
         }
 
         return true;
-
     }
 
-    pub fn get_adjacent_coords(target: (i64, i64)) -> Vec<(i64, i64)> {}
+    /// Gets all coordinates that are directly adjacent to the target coordinates.
+    pub fn get_adjacent_coords(target: (i64, i64)) -> Vec<(i64, i64)> {
+        let mut coords: Vec<(i64, i64)> = Vec::new();
+        coords.push((target.0 - 1, target.1));
+        coords.push((target.0 + 1, target.1));
+        coords.push((target.0, target.1 - 1));
+        coords.push((target.0, target.1 + 1));
+        coords
+    }
+
+    /// Gets all coordinates that are corners to the target coordinate.
+    pub fn get_corner_coords(target: (i64, i64)) -> Vec<(i64, i64)> {
+        let mut coords: Vec<(i64, i64)> = Vec::new();
+        coords.push((target.0 - 1, target.1 - 1));
+        coords.push((target.0 - 1, target.1 + 1));
+        coords.push((target.0 + 1, target.1 - 1));
+        coords.push((target.0 + 1, target.1 + 1));
+        coords
+    }
+
+    /// Gets all coordinates that are surrounding the target coordinate.
+    pub fn get_surrounding_coords(target: (i64, i64)) -> Vec<(i64, i64)> {
+        let mut surrounding = Vec::new();
+        let mut corners = get_corner_coords(target);
+        let mut adjacent = get_adjacent_coords(target);
+        surrounding.append(&mut corners);
+        surrounding.append(&mut adjacent);
+        surrounding
+    }
 
     #[cfg(test)]
     mod tests {
-        use super::is_adjacent;
+        use super::{get_adjacent_coords, is_adjacent, get_surrounding_coords, get_corner_coords};
         describe! celltool {
+
             it "determines if a cell is adjacent" {
                 let source = (1,1);
                 let adjacent = (1,2);
                 assert_eq!(is_adjacent(source, adjacent), true);
             }
+
             it "determines if a non-adjacent cell is non-adjacent" {
                 let source = (1,1);
                 let nonadjacent = (2,2);
                 assert_eq!(is_adjacent(source, nonadjacent), false);
+            }
+
+            it "gets adjacent cell coordinates" {
+                let target = (0,0);
+                let coords = vec![(-1,0),(1,0),(0,-1),(0,1)];
+                let adjacent = get_adjacent_coords(target);
+                assert_eq!(adjacent, coords);
+            }
+
+            it "gets corner cell coordinates" {
+                let target = (0,0);
+                let coords = vec![(-1,-1),(-1,1),(1,-1),(1,1)];
+                let corners = get_corner_coords(target);
+                assert_eq!(corners, coords);
+            }
+
+            it "gets surrounding cell coordinates" {
+                let target = (0,0);
+                /// Surrounding is corners + adjacent, so copy-pasta those tests in that order.
+                let coords = vec![(-1,-1),(-1,1),(1,-1),(1,1),(-1,0),(1,0),(0,-1),(0,1)];
+                let surrounding = get_surrounding_coords(target);
+                assert_eq!(surrounding, coords);
             }
         }
     }

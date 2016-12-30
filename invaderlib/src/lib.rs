@@ -255,6 +255,7 @@ mod CellTool {
         (x_offset, y_offset)
     }
 
+    /// Determines the distance between the source and target coordinates.
     pub fn distance(source: (i64, i64), target: (i64, i64)) -> f32 {
         let (xs, ys) = (source.0 as f32, source.1 as f32);
         let (xt, yt) = (target.0 as f32, target.1 as f32);

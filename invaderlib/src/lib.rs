@@ -367,6 +367,82 @@ mod ImageTool {
     }
 }
 
+mod Gen {
+    extern crate rand;
+    use Gen::rand::{Rng, SeedableRng, StdRng, ThreadRng, thread_rng};
+    use Gen::rand::distributions::{Range, IndependentSample};
+    use super::{Grid, Data};
+
+    pub struct Generator {
+        seed_gen: ThreadRng,
+        rng: StdRng,
+    }
+
+    impl Generator {
+        pub fn new() -> Generator {
+            let mut seed_gen = thread_rng();
+            let seed: &[_] = &[seed_gen.gen(), seed_gen.gen(), seed_gen.gen()];
+            let rng: StdRng = StdRng::from_seed(seed);
+            Generator {
+                seed_gen: seed_gen,
+                rng: rng,
+            }
+        }
+
+        pub fn new_seed<'a>(&'a mut self) -> Vec<usize> {
+            vec![self.seed_gen.gen(), self.seed_gen.gen(), self.seed_gen.gen()]
+        }
+
+        pub fn reseed(&mut self) {
+            let seed = self.new_seed();
+            self.rng.reseed(seed.as_slice());
+        }
+
+        pub fn invader_seeded(&mut self,
+                              seed: Vec<usize>,
+                              width: u32,
+                              height: u32,
+                              min_px: u32,
+                              max_px: u32)
+                              -> Grid {
+            self.rng.reseed(seed.as_slice());
+
+            let mut grid = Grid::new();
+            let x_range = Range::new(0, width);
+            let y_range = Range::new(0, height + 1);
+            let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
+
+            let mut pixels_filled = 0;
+            while pixels_filled < total_pixels {
+                let x = x_range.ind_sample(&mut self.rng);
+                let y = y_range.ind_sample(&mut self.rng);
+                let pixel = Data::RGBA(255, 255, 255, 255);
+                grid.set(x as i64, y as i64, pixel);
+                pixels_filled += 1;
+            }
+            grid
+        }
+
+        pub fn invader(&mut self, width: u32, height: u32, min_px: u32, max_px: u32) -> Grid {
+            let seed = self.new_seed();
+            println!("Gen invader with seed :{:?}", seed);
+            self.invader_seeded(seed, width, height, min_px, max_px)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::Generator;
+        describe! gen {
+            it "creates invaders" {
+                let mut gen = Generator::new();
+                let invader = gen.invader(16,16, 6, 12);
+                
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Grid, Data, Point, Bounds};

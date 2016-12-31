@@ -543,8 +543,9 @@ pub mod Gen {
                               min_px: (u32, u32),
                               max_px: (u32, u32),
                               max_nearby: (u32, u32),
-                              max_edge: (u32, u32))
-                              -> Grid {
+                              max_edge: (u32, u32),
+                              center_overlap: i32)
+                              -> Option<Grid> {
             self.rng.reseed(seed.as_slice());
 
             let min_px_rng = Range::new(min_px.0, min_px.1 + 1);
@@ -573,7 +574,12 @@ pub mod Gen {
                      max_nearby,
                      max_edge);
 
+            let mut iterations = 0;
             while pixels_filled < total_pixels {
+                iterations += 1;
+                if iterations > 1000 {
+                    return None;
+                }
                 let x = x_rng.ind_sample(&mut self.rng);
                 let y = y_rng.ind_sample(&mut self.rng);
 
@@ -596,9 +602,8 @@ pub mod Gen {
                 if x == width - 1 && edge_pixels >= max_edge {
                     continue;
                 }
-
                 if (num_nearby > 0 && num_nearby <= max_nearby) || pixels_filled == 0 {
-                    println!("Nearby count={}", num_nearby);
+                    // println!("Nearby count={}", num_nearby);
                     pixels_filled += 1;
                     let pixel = Data::RGBA(255, 255, 255, 255);
                     // Always set the first pixel on the right edge.
@@ -612,9 +617,17 @@ pub mod Gen {
             }
             let mut dup_grid = grid.clone();
             dup_grid.flip_horizontally();
-            dup_grid.translate_by(width as i64, 0);
+            // Flip will place the coords into Quadrant II (negative). We need to translate
+            // by the width of the grid to bring it back into Quadrant I, then again
+            // to bring it to the right of the original pixels. Subtract 1 due to zero-indexing
+            // then add center_overlap provided by user.
+            // center_overlap 0 = mirror, < 0 spaces, > 0 intersect.
+            dup_grid.translate_by((width as i64 * 2) - 1 - center_overlap as i64, 0);
             grid.merge(&dup_grid);
-            grid
+            if center_overlap != 0 {
+                grid.translate_by((-center_overlap / 2) as i64, 0);
+            }
+            Some(grid)
         }
 
         pub fn invader(&mut self,
@@ -623,11 +636,19 @@ pub mod Gen {
                        min_px: (u32, u32),
                        max_px: (u32, u32),
                        max_nearby: (u32, u32),
-                       max_edge: (u32, u32))
-                       -> Grid {
+                       max_edge: (u32, u32),
+                       center_overlap: i32)
+                       -> Option<Grid> {
             let seed = self.new_seed();
             println!("Gen invader with seed :{:?}", seed);
-            self.invader_seeded(seed, width, height, min_px, max_px, max_nearby, max_edge)
+            self.invader_seeded(seed,
+                                width,
+                                height,
+                                min_px,
+                                max_px,
+                                max_nearby,
+                                max_edge,
+                                center_overlap)
         }
     }
 

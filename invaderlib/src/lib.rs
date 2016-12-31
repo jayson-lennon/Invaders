@@ -542,6 +542,7 @@ pub mod Gen {
         }
 
         /// Create an invader with a pre-supplied seed.
+        /// seed:
         pub fn invader_seeded(&mut self,
                               seed: Vec<usize>,
                               width: u32,
@@ -555,22 +556,19 @@ pub mod Gen {
             // Set up RNG seed to the supplied seed.
             self.rng.reseed(seed.as_slice());
 
-            // Create ranges for the RNG to pick from based on params.
+            // Pick values from a range based on supplied params.
             let min_px = Range::new(min_px.0, min_px.1 + 1).ind_sample(&mut self.rng);
-            let max_px_rng = Range::new(max_px.0, max_px.1 + 1);
-            let max_nearby_rng = Range::new(max_nearby.0, max_nearby.1 + 1);
-            let max_edge_rng = Range::new(max_edge.0, max_edge.1 + 1);
+            let max_px = Range::new(max_px.0, max_px.1 + 1).ind_sample(&mut self.rng);
+            // Total pixels to fill chosen from between min_px and max_px.
+            let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
+            // Maximum pixels that are allowed to be "nearby" (corner and adjacent pixels).
+            let max_nearby = Range::new(max_nearby.0, max_nearby.1 + 1).ind_sample(&mut self.rng);
+            // Maxmimum number of pixels that may be along the right edge.
+            let max_edge = Range::new(max_edge.0, max_edge.1 + 1).ind_sample(&mut self.rng);
 
             // Create ranges for the x and y coordinates based on desired width and height.
             let x_rng = Range::new(0, width);
             let y_rng = Range::new(0, height + 1);
-
-            // Pick values for the params.
-            let max_px = max_px_rng.ind_sample(&mut self.rng);
-            // Total pixels to fill chosen from between min_px and max_px.
-            let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
-            let max_nearby = max_nearby_rng.ind_sample(&mut self.rng);
-            let max_edge = max_edge_rng.ind_sample(&mut self.rng);
 
             // This is the Grid where we will be writing pixels.
             let mut grid = Grid::new();
@@ -594,54 +592,78 @@ pub mod Gen {
 
             while pixels_filled < total_pixels {
                 iterations += 1;
+                // Bailout if we try to too many times. Supplied parameters are causing problems
+                // with the algorithm and the params should be adjusted.
                 if iterations > 10000 {
                     return None;
                 }
+                // Pick the x and y coordinates.
                 let x = x_rng.ind_sample(&mut self.rng);
                 let y = y_rng.ind_sample(&mut self.rng);
 
-                // Don't reuse the same coordinates twice.
+                // Don't reuse the same pixel twice.
                 if grid.get(x as i64, y as i64).is_some() {
                     continue;
                 }
 
-                let nearby_pixels = CellTool::get_surrounding_coords((x as i64, y as i64));
+                // If we have an edge pixel, check if we are already at the limit.
+                if x == width - 1 && edge_pixels >= max_edge {
+                    continue;
+                }
+                // The pixel picked is an edge pixel.
+                if x == width - 1 {
+                    edge_pixels += 1;
+                }
 
+                // Get all "nearby" pixels (adjacent and corners). This is so we can adjust
+                // how "clumped up" the pixels get. In most cases, we won't want to have
+                // a bunch of pixels making a giant rectangle.
+                let nearby_pixels = CellTool::get_surrounding_coords((x as i64, y as i64));
+                // Number of pixels found that are nearby.
                 let mut num_nearby = 0;
                 for coords in nearby_pixels {
+                    // Check for used pixels nearby.
                     if grid.get(coords.0 as i64, coords.1 as i64).is_some() {
                         num_nearby += 1;
                     }
                 }
-                if x == width - 1 {
-                    edge_pixels += 1;
-                }
-                if x == width - 1 && edge_pixels >= max_edge {
-                    continue;
-                }
-                if (num_nearby > 0 && num_nearby <= max_nearby) || pixels_filled == 0 {
-                    // println!("Nearby count={}", num_nearby);
-                    pixels_filled += 1;
+
+                // If this is our first pixel, then we will be using it. If not, we need to make
+                // sure that it is "nearby" at least 1 other pixel but not exceeding the maximum
+                // "nearby" pixels as defined by max_nearby.
+                if pixels_filled == 0 || (num_nearby > 0 && num_nearby <= max_nearby) {
+                    // We are just filling them with white for now. Need to add color/palette
+                    // options at some point in the future.
                     let pixel = Data::RGBA(255, 255, 255, 255);
-                    // Always set the first pixel on the right edge.
-                    if pixels_filled == 1 {
+                    // If this is the first pixel then we are going to set it at the right edge
+                    // since we always require at least 1 pixel on the right edge.
+                    if pixels_filled == 0 {
                         grid.set((width - 1) as i64, y as i64, pixel);
                     } else {
                         // Pixels afterwards can be anywhere (subject to above constraints).
                         grid.set(x as i64, y as i64, pixel);
                     }
+                    pixels_filled += 1;
                 }
             }
+
+            // Duplicating the grid so we can mirror the image.
             let mut dup_grid = grid.clone();
+            // Flip the grid, placing the coordinates into Quadrant II.
             dup_grid.flip_horizontally();
-            // Flip will place the coords into Quadrant II (negative). We need to translate
-            // by the width of the grid to bring it back into Quadrant I, then again
-            // to bring it to the right of the original pixels. Subtract 1 due to zero-indexing
-            // then add center_overlap provided by user.
-            // center_overlap 0 = mirror, < 0 spaces, > 0 intersect.
+            // We translate by width*2: once to bring the grid back to Quadrant I, and again to
+            // bring it next to the original grid to create a mirror image. -1 is for zero-indexing.
+            // center_overlap determines how the image is mirrored:
+            // == 0: image will be mirrored
+            //  < 0: image will be disconnected from original by center_overlap pixels.
+            //  > 0: image will intersect the original by center_overlap pixels
             dup_grid.translate_by((width as i64 * 2) - 1 - center_overlap as i64, 0);
             grid.merge(&dup_grid);
+
+            // Check if we are working with a non-mirror image and if so, we need to center it.
             if center_overlap != 0 {
+                // Note that odd values for either image size or center_overlap will always result in
+                // an off-center image.
                 grid.translate_by((-center_overlap / 2) as i64, 0);
             }
             Some(grid)

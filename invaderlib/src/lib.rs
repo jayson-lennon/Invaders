@@ -505,18 +505,21 @@ pub mod ImageTool {
     }
 }
 
+/// Generates pixel art.
 pub mod Gen {
     extern crate rand;
     use Gen::rand::{Rng, SeedableRng, StdRng, ThreadRng, thread_rng};
     use Gen::rand::distributions::{Range, IndependentSample};
     use super::{Grid, Data, CellTool};
 
+    /// Container for random number generators.
     pub struct Generator {
         seed_gen: ThreadRng,
         rng: StdRng,
     }
 
     impl Generator {
+        /// Create new random number generators.
         pub fn new() -> Generator {
             let mut seed_gen = thread_rng();
             let seed: &[_] = &[seed_gen.gen(), seed_gen.gen(), seed_gen.gen()];
@@ -527,15 +530,18 @@ pub mod Gen {
             }
         }
 
+        /// Generate a new seed to be used by the RNG.
         pub fn new_seed<'a>(&'a mut self) -> Vec<usize> {
             vec![self.seed_gen.gen(), self.seed_gen.gen(), self.seed_gen.gen()]
         }
 
+        /// Generate and automatically reseed the RNG.
         pub fn reseed(&mut self) {
             let seed = self.new_seed();
             self.rng.reseed(seed.as_slice());
         }
 
+        /// Create an invader with a pre-supplied seed.
         pub fn invader_seeded(&mut self,
                               seed: Vec<usize>,
                               width: u32,
@@ -546,25 +552,33 @@ pub mod Gen {
                               max_edge: (u32, u32),
                               center_overlap: i32)
                               -> Option<Grid> {
+            // Set up RNG seed to the supplied seed.
             self.rng.reseed(seed.as_slice());
 
-            let min_px_rng = Range::new(min_px.0, min_px.1 + 1);
+            // Create ranges for the RNG to pick from based on params.
+            let min_px = Range::new(min_px.0, min_px.1 + 1).ind_sample(&mut self.rng);
             let max_px_rng = Range::new(max_px.0, max_px.1 + 1);
             let max_nearby_rng = Range::new(max_nearby.0, max_nearby.1 + 1);
             let max_edge_rng = Range::new(max_edge.0, max_edge.1 + 1);
 
-            let min_px = min_px_rng.ind_sample(&mut self.rng);
+            // Create ranges for the x and y coordinates based on desired width and height.
+            let x_rng = Range::new(0, width);
+            let y_rng = Range::new(0, height + 1);
+
+            // Pick values for the params.
             let max_px = max_px_rng.ind_sample(&mut self.rng);
+            // Total pixels to fill chosen from between min_px and max_px.
             let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
             let max_nearby = max_nearby_rng.ind_sample(&mut self.rng);
             let max_edge = max_edge_rng.ind_sample(&mut self.rng);
 
-
+            // This is the Grid where we will be writing pixels.
             let mut grid = Grid::new();
-            let x_rng = Range::new(0, width);
-            let y_rng = Range::new(0, height + 1);
 
+            // Total pixels filled by generation.
             let mut pixels_filled = 0;
+
+            // Number of pixels that are on the right edge of the image.
             let mut edge_pixels = 0;
 
             println!("px: {}:{}->{}, nearby: {}, edge: {}",
@@ -574,10 +588,13 @@ pub mod Gen {
                      max_nearby,
                      max_edge);
 
+            // Bailout iteration counter in case the generation loops too many times.
+            // Hardcoded to limit @ 10000.
             let mut iterations = 0;
+
             while pixels_filled < total_pixels {
                 iterations += 1;
-                if iterations > 1000 {
+                if iterations > 10000 {
                     return None;
                 }
                 let x = x_rng.ind_sample(&mut self.rng);
@@ -630,6 +647,7 @@ pub mod Gen {
             Some(grid)
         }
 
+        /// Create an invader with a randomly generated seed.
         pub fn invader(&mut self,
                        width: u32,
                        height: u32,

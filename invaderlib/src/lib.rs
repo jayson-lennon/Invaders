@@ -183,65 +183,31 @@ impl Grid {
         }
     }
 
-    /// Does the gruntwork for flipping the `Grid`. Points must be pre-sorted on the x or y
-    /// coordinate (depending on whether flipping horizontally or vertically).
+    /// Does the gruntwork for flipping the `Grid`
     fn do_flip(&mut self, flip: Flip) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
-
-        // Temp vec to hold sorted points from the grid.
-        let mut points;
-        // The largest coordinate to determine translation coordinates.
-        let size;
-        match flip {
-            Flip::Horizontally => {
-                // Gather all points to be sorted.
-                points =
-                    self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
-                // Sort by x-coordinate so we can determine the largest x-coordinate.
-                points.sort_by_key(|p| p.x);
-                match points.pop() {
-                    Some(point) => size = point.x.abs(),
-                    // No points present, nothing to do.
-                    None => return,
-                };
-            }
-            Flip::Vertically => {
-                // Gather all points to be sorted.
-                points =
-                    self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
-                // Sort by y-coordinate so we can determine the largest y-coordinate.
-                points.sort_by_key(|p| p.y);
-                match points.pop() {
-                    Some(point) => size = point.y.abs(),
-                    // No points present, nothing to do.
-                    None => return,
-                };
-            }
-        };
-
         // Iterate through all points and apply the approriate translation.
         for (coords, data) in self.plane.iter() {
             match flip {
                 Flip::Horizontally => {
-                    let x = size as i64 - coords.0;
-                    new_plane.insert((x, coords.1), *data);
+                    new_plane.insert((-coords.0, coords.1), *data);
                 }
                 Flip::Vertically => {
-                    let y = size as i64 - coords.1;
-                    new_plane.insert((coords.0, y), *data);
+                    new_plane.insert((coords.0, -coords.1), *data);
                 }
             };
         }
         self.plane = new_plane;
     }
 
-    /// Flip the entire `Grid` horizontally. Size is the width of the `Grid` encompassing
-    /// all points that should be flipped.
+    /// Flip the entire `Grid` horizontally. Pivot is about the y-axis.
+    /// Quadrant I & IV will be flipped to Quadrant II & III, respectively.
     pub fn flip_horizontally(&mut self) {
         self.do_flip(Flip::Horizontally);
     }
 
-    /// Flip the entire `Grid` vertically. Size acts as the pivot
+    /// Flip the entire `Grid` vertically. Pivot is about the x-axis.
+    /// Quadrant I & II will be flipped to Quadrant III & IV, respectively.
     pub fn flip_vertically(&mut self) {
         self.do_flip(Flip::Vertically);
     }
@@ -667,12 +633,9 @@ pub mod Gen {
 
     #[cfg(test)]
     mod tests {
-        use super::Generator;
-        describe! gen {
-            it "creates invaders" {
-                let mut gen = Generator::new();
-                let invader = gen.invader(16,16, 6, 12);
-                
+        describe! generate {
+            it "need generator tests" {
+                assert!(false, "need tests to ensure basic generation");
             }
         }
     }
@@ -755,13 +718,13 @@ mod tests {
             let data1 = Data::RGBA(1,1,1,1);
             let data2 = Data::RGBA(2,2,2,2);
             let data3 = Data::RGBA(4,4,4,4);
-            grid.set(1,1,data1);
+            grid.set(-1,-1,data1);
             grid.set(3,2,data2);
             grid.set(4,3,data3);
             grid.flip_horizontally();
-            let point1 = grid.get(3, 1).unwrap();
-            let point2 = grid.get(1, 2).unwrap();
-            let point3 = grid.get(0, 3).unwrap();
+            let point1 = grid.get(1, -1).unwrap();
+            let point2 = grid.get(-3, 2).unwrap();
+            let point3 = grid.get(-4, 3).unwrap();
             assert_eq!(*point1, data1);
             assert_eq!(*point2, data2);
             assert_eq!(*point3, data3);
@@ -772,20 +735,16 @@ mod tests {
             let data1 = Data::RGBA(1,1,1,1);
             let data2 = Data::RGBA(2,2,2,2);
             let data3 = Data::RGBA(4,4,4,4);
-            grid.set(1,1,data1);
+            grid.set(-1,-1,data1);
             grid.set(3,2,data2);
             grid.set(4,3,data3);
             grid.flip_vertically();
-            let point1 = grid.get(1, 2).unwrap();
-            let point2 = grid.get(3, 1).unwrap();
-            let point3 = grid.get(4, 0).unwrap();
+            let point1 = grid.get(-1, 1).unwrap();
+            let point2 = grid.get(3, -2).unwrap();
+            let point3 = grid.get(4, -3).unwrap();
             assert_eq!(*point1, data1);
             assert_eq!(*point2, data2);
             assert_eq!(*point3, data3);
-        }
-
-        it "flips the grid with negative coordinates" {
-            assert!(false, "FIXME: doesn't properly handle negative coordinates.");
         }
 
         it "merges another grid" {

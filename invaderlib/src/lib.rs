@@ -576,22 +576,22 @@ pub mod Gen {
                               height: u32,
                               min_px: (u32, u32),
                               max_px: (u32, u32),
-                              max_adjacent: (u32, u32),
+                              max_nearby: (u32, u32),
                               max_edge: (u32, u32))
                               -> Grid {
             self.rng.reseed(seed.as_slice());
 
             let min_px_rng = Range::new(min_px.0, min_px.1 + 1);
             let max_px_rng = Range::new(max_px.0, max_px.1 + 1);
-            let max_adjacent_rng = Range::new(max_adjacent.0, max_adjacent.1 + 1);
+            let max_nearby_rng = Range::new(max_nearby.0, max_nearby.1 + 1);
             let max_edge_rng = Range::new(max_edge.0, max_edge.1 + 1);
 
             let min_px = min_px_rng.ind_sample(&mut self.rng);
             let max_px = max_px_rng.ind_sample(&mut self.rng);
-            let max_adjacent = max_adjacent_rng.ind_sample(&mut self.rng);
+            let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
+            let max_nearby = max_nearby_rng.ind_sample(&mut self.rng);
             let max_edge = max_edge_rng.ind_sample(&mut self.rng);
 
-            let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
 
             let mut grid = Grid::new();
             let x_rng = Range::new(0, width);
@@ -600,21 +600,28 @@ pub mod Gen {
             let mut pixels_filled = 0;
             let mut edge_pixels = 0;
 
+            println!("px: {}:{}->{}, nearby: {}, edge: {}",
+                     min_px,
+                     max_px,
+                     total_pixels,
+                     max_nearby,
+                     max_edge);
+
             while pixels_filled < total_pixels {
                 let x = x_rng.ind_sample(&mut self.rng);
                 let y = y_rng.ind_sample(&mut self.rng);
 
-                let adjacent_pixels = CellTool::get_surrounding_coords((x as i64, y as i64));
+                // Don't reuse the same coordinates twice.
+                if grid.get(x as i64, y as i64).is_some() {
+                    continue;
+                }
 
-                let mut num_adjacent = 0;
-                for coords in adjacent_pixels {
-                    // Don't reuse the same coordinates twice.
-                    if grid.get(x as i64, y as i64).is_some() {
-                        break;
-                    }
-                    // Only get adjacent pixels.
+                let nearby_pixels = CellTool::get_surrounding_coords((x as i64, y as i64));
+
+                let mut num_nearby = 0;
+                for coords in nearby_pixels {
                     if grid.get(coords.0 as i64, coords.1 as i64).is_some() {
-                        num_adjacent += 1;
+                        num_nearby += 1;
                     }
                 }
                 if x == width - 1 {
@@ -624,7 +631,8 @@ pub mod Gen {
                     continue;
                 }
 
-                if (num_adjacent > 0 && num_adjacent <= max_adjacent) || pixels_filled == 0 {
+                if (num_nearby > 0 && num_nearby <= max_nearby) || pixels_filled == 0 {
+                    println!("Nearby count={}", num_nearby);
                     pixels_filled += 1;
                     let pixel = Data::RGBA(255, 255, 255, 255);
                     // Always set the first pixel on the right edge.
@@ -648,12 +656,12 @@ pub mod Gen {
                        height: u32,
                        min_px: (u32, u32),
                        max_px: (u32, u32),
-                       max_adjacent: (u32, u32),
+                       max_nearby: (u32, u32),
                        max_edge: (u32, u32))
                        -> Grid {
             let seed = self.new_seed();
             println!("Gen invader with seed :{:?}", seed);
-            self.invader_seeded(seed, width, height, min_px, max_px, max_adjacent, max_edge)
+            self.invader_seeded(seed, width, height, min_px, max_px, max_nearby, max_edge)
         }
     }
 

@@ -183,8 +183,7 @@ impl Grid {
         }
     }
 
-    /// Does the gruntwork for flipping the `Grid`. Points must be pre-sorted on the x or y
-    /// coordinate (depending on whether flipping horizontally or vertically).
+    /// Does the gruntwork for flipping the `Grid`
     fn do_flip(&mut self, flip: Flip) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
         // Iterate through all points and apply the approriate translation.
@@ -201,13 +200,14 @@ impl Grid {
         self.plane = new_plane;
     }
 
-    /// Flip the entire `Grid` horizontally. Size is the width of the `Grid` encompassing
-    /// all points that should be flipped.
+    /// Flip the entire `Grid` horizontally. Pivot is about the y-axis.
+    /// Quadrant I & IV will be flipped to Quadrant II & III, respectively.
     pub fn flip_horizontally(&mut self) {
         self.do_flip(Flip::Horizontally);
     }
 
-    /// Flip the entire `Grid` vertically. Size acts as the pivot
+    /// Flip the entire `Grid` vertically. Pivot is about the x-axis.
+    /// Quadrant I & II will be flipped to Quadrant III & IV, respectively.
     pub fn flip_vertically(&mut self) {
         self.do_flip(Flip::Vertically);
     }

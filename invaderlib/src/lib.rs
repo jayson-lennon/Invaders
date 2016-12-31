@@ -38,6 +38,11 @@ impl Default for Data {
         Data::Empty
     }
 }
+/// Used internally for determining which direction to flip a Grid.
+enum Flip {
+    Horizontally,
+    Vertically,
+}
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Point {
@@ -45,7 +50,7 @@ pub struct Point {
     y: i64,
 }
 
-/// A bounding box. `min` is the upper left point, `max` is the lower right point.
+/// A bounding box. `min` is the lower left point, `max` is the upper right point.
 #[derive(Debug)]
 pub struct Bounds {
     min: Point,
@@ -153,7 +158,7 @@ impl Grid {
         self.plane = new_plane;
     }
 
-    /// Translates the `Point`s in the `Grid` to (x,y). The origin is the upper left coordinate
+    /// Translates the `Point`s in the `Grid` to (x,y). The origin is the lower left coordinate
     /// of a bounding box encompassing all `Point`s.
     pub fn translate_to(&mut self, x: i64, y: i64) {
         let bounds = self.bounds();
@@ -163,7 +168,7 @@ impl Grid {
     }
 
     /// Merge another `Grid` into this `Grid` at the provided (x,y) coordinates. The origin of the
-    /// `Grid` being added is the upper left corner of a bounding box encompassing all `Point`s
+    /// `Grid` being added is the lower left corner of a bounding box encompassing all `Point`s
     /// in the `Grid`.
     pub fn merge_at(&mut self, grid: &Grid, x: i64, y: i64) {
         let mut translated_grid = grid.clone();
@@ -180,53 +185,65 @@ impl Grid {
 
     /// Does the gruntwork for flipping the `Grid`. Points must be pre-sorted on the x or y
     /// coordinate (depending on whether flipping horizontally or vertically).
-    fn do_flip(&mut self, points: Vec<Point>) {
+    fn do_flip(&mut self, flip: Flip) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();
 
-        // Need a reverse and forward iterator for interchanging of point coordinates.
-        let mut points_reversed = points.iter().rev();
-        let mut points = points.iter();
-
-        let mut i = 0;
-        let max_iterations = self.plane.len();
-
-        while i < max_iterations {
-            // Get the source point coordinates.
-            if let Some(src) = points.next() {
-                // Get the data from the source point.
-                if let Some(data) = self.get(src.x, src.y) {
-                    // Get the target point coordinates.
-                    if let Some(target) = points_reversed.next() {
-                        // Add the source data to the target point coordinates.
-                        new_plane.insert((target.x, target.y), *data);
-                    }
-                }
+        // Temp vec to hold sorted points from the grid.
+        let mut points;
+        // The largest coordinate to determine translation coordinates.
+        let size;
+        match flip {
+            Flip::Horizontally => {
+                // Gather all points to be sorted.
+                points =
+                    self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+                // Sort by x-coordinate so we can determine the largest x-coordinate.
+                points.sort_by_key(|p| p.x);
+                match points.pop() {
+                    Some(point) => size = point.x.abs(),
+                    // No points present, nothing to do.
+                    None => return,
+                };
             }
-            i += 1;
+            Flip::Vertically => {
+                // Gather all points to be sorted.
+                points =
+                    self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
+                // Sort by y-coordinate so we can determine the largest y-coordinate.
+                points.sort_by_key(|p| p.y);
+                match points.pop() {
+                    Some(point) => size = point.y.abs(),
+                    // No points present, nothing to do.
+                    None => return,
+                };
+            }
+        };
+
+        // Iterate through all points and apply the approriate translation.
+        for (coords, data) in self.plane.iter() {
+            match flip {
+                Flip::Horizontally => {
+                    let x = size as i64 - coords.0;
+                    new_plane.insert((x, coords.1), *data);
+                }
+                Flip::Vertically => {
+                    let y = size as i64 - coords.1;
+                    new_plane.insert((coords.0, y), *data);
+                }
+            };
         }
         self.plane = new_plane;
     }
 
-    /// Flip the entire `Grid` horizontally.
+    /// Flip the entire `Grid` horizontally. Size is the width of the `Grid` encompassing
+    /// all points that should be flipped.
     pub fn flip_horizontally(&mut self) {
-        let mut points =
-            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
-
-        // Want to sort by x-coordinate since this is a horizontal flip.
-        points.sort_by_key(|p| p.x);
-
-        self.do_flip(points);
+        self.do_flip(Flip::Horizontally);
     }
 
-    /// Flip the entire `Grid` vertically..
+    /// Flip the entire `Grid` vertically. Size acts as the pivot
     pub fn flip_vertically(&mut self) {
-        let mut points =
-            self.plane.keys().map(|p| Point { x: p.0, y: p.1 }).collect::<Vec<Point>>();
-
-        // Want to sort by y-coordinate since this is a vertical flip.
-        points.sort_by_key(|p| p.y);
-
-        self.do_flip(points);
+        self.do_flip(Flip::Vertically);
     }
 }
 
@@ -526,7 +543,7 @@ pub mod Gen {
     extern crate rand;
     use Gen::rand::{Rng, SeedableRng, StdRng, ThreadRng, thread_rng};
     use Gen::rand::distributions::{Range, IndependentSample};
-    use super::{Grid, Data};
+    use super::{Grid, Data, CellTool};
 
     pub struct Generator {
         seed_gen: ThreadRng,
@@ -557,31 +574,94 @@ pub mod Gen {
                               seed: Vec<usize>,
                               width: u32,
                               height: u32,
-                              min_px: u32,
-                              max_px: u32)
+                              min_px: (u32, u32),
+                              max_px: (u32, u32),
+                              max_nearby: (u32, u32),
+                              max_edge: (u32, u32))
                               -> Grid {
             self.rng.reseed(seed.as_slice());
 
-            let mut grid = Grid::new();
-            let x_range = Range::new(0, width);
-            let y_range = Range::new(0, height + 1);
+            let min_px_rng = Range::new(min_px.0, min_px.1 + 1);
+            let max_px_rng = Range::new(max_px.0, max_px.1 + 1);
+            let max_nearby_rng = Range::new(max_nearby.0, max_nearby.1 + 1);
+            let max_edge_rng = Range::new(max_edge.0, max_edge.1 + 1);
+
+            let min_px = min_px_rng.ind_sample(&mut self.rng);
+            let max_px = max_px_rng.ind_sample(&mut self.rng);
             let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
+            let max_nearby = max_nearby_rng.ind_sample(&mut self.rng);
+            let max_edge = max_edge_rng.ind_sample(&mut self.rng);
+
+
+            let mut grid = Grid::new();
+            let x_rng = Range::new(0, width);
+            let y_rng = Range::new(0, height + 1);
 
             let mut pixels_filled = 0;
+            let mut edge_pixels = 0;
+
+            println!("px: {}:{}->{}, nearby: {}, edge: {}",
+                     min_px,
+                     max_px,
+                     total_pixels,
+                     max_nearby,
+                     max_edge);
+
             while pixels_filled < total_pixels {
-                let x = x_range.ind_sample(&mut self.rng);
-                let y = y_range.ind_sample(&mut self.rng);
-                let pixel = Data::RGBA(255, 255, 255, 255);
-                grid.set(x as i64, y as i64, pixel);
-                pixels_filled += 1;
+                let x = x_rng.ind_sample(&mut self.rng);
+                let y = y_rng.ind_sample(&mut self.rng);
+
+                // Don't reuse the same coordinates twice.
+                if grid.get(x as i64, y as i64).is_some() {
+                    continue;
+                }
+
+                let nearby_pixels = CellTool::get_surrounding_coords((x as i64, y as i64));
+
+                let mut num_nearby = 0;
+                for coords in nearby_pixels {
+                    if grid.get(coords.0 as i64, coords.1 as i64).is_some() {
+                        num_nearby += 1;
+                    }
+                }
+                if x == width - 1 {
+                    edge_pixels += 1;
+                }
+                if x == width - 1 && edge_pixels >= max_edge {
+                    continue;
+                }
+
+                if (num_nearby > 0 && num_nearby <= max_nearby) || pixels_filled == 0 {
+                    println!("Nearby count={}", num_nearby);
+                    pixels_filled += 1;
+                    let pixel = Data::RGBA(255, 255, 255, 255);
+                    // Always set the first pixel on the right edge.
+                    if pixels_filled == 1 {
+                        grid.set((width - 1) as i64, y as i64, pixel);
+                    } else {
+                        // Pixels afterwards can be anywhere (subject to above constraints).
+                        grid.set(x as i64, y as i64, pixel);
+                    }
+                }
             }
+            let mut dup_grid = grid.clone();
+            dup_grid.flip_horizontally();
+            dup_grid.translate_by(width as i64, 0);
+            grid.merge(&dup_grid);
             grid
         }
 
-        pub fn invader(&mut self, width: u32, height: u32, min_px: u32, max_px: u32) -> Grid {
+        pub fn invader(&mut self,
+                       width: u32,
+                       height: u32,
+                       min_px: (u32, u32),
+                       max_px: (u32, u32),
+                       max_nearby: (u32, u32),
+                       max_edge: (u32, u32))
+                       -> Grid {
             let seed = self.new_seed();
             println!("Gen invader with seed :{:?}", seed);
-            self.invader_seeded(seed, width, height, min_px, max_px)
+            self.invader_seeded(seed, width, height, min_px, max_px, max_nearby, max_edge)
         }
     }
 
@@ -674,42 +754,38 @@ mod tests {
             let mut grid = grid;
             let data1 = Data::RGBA(1,1,1,1);
             let data2 = Data::RGBA(2,2,2,2);
-            let data3 = Data::RGBA(3,3,3,3);
-            let data4 = Data::RGBA(4,4,4,4);
+            let data3 = Data::RGBA(4,4,4,4);
             grid.set(1,1,data1);
-            grid.set(2,1,data2);
-            grid.set(3,1,data3);
-            grid.set(4,1,data4);
+            grid.set(3,2,data2);
+            grid.set(4,3,data3);
             grid.flip_horizontally();
-            let point1 = grid.get(1, 1).unwrap();
-            let point2 = grid.get(2, 1).unwrap();
-            let point3 = grid.get(3, 1).unwrap();
-            let point4 = grid.get(4, 1).unwrap();
-            assert_eq!(*point1, data4);
-            assert_eq!(*point2, data3);
-            assert_eq!(*point3, data2);
-            assert_eq!(*point4, data1);
+            let point1 = grid.get(3, 1).unwrap();
+            let point2 = grid.get(1, 2).unwrap();
+            let point3 = grid.get(0, 3).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+            assert_eq!(*point3, data3);
         }
 
         it "vertically flips the grid" {
             let mut grid = grid;
             let data1 = Data::RGBA(1,1,1,1);
             let data2 = Data::RGBA(2,2,2,2);
-            let data3 = Data::RGBA(3,3,3,3);
-            let data4 = Data::RGBA(4,4,4,4);
+            let data3 = Data::RGBA(4,4,4,4);
             grid.set(1,1,data1);
-            grid.set(1,2,data2);
-            grid.set(1,3,data3);
-            grid.set(1,4,data4);
+            grid.set(3,2,data2);
+            grid.set(4,3,data3);
             grid.flip_vertically();
-            let point1 = grid.get(1, 1).unwrap();
-            let point2 = grid.get(1, 2).unwrap();
-            let point3 = grid.get(1, 3).unwrap();
-            let point4 = grid.get(1, 4).unwrap();
-            assert_eq!(*point1, data4);
-            assert_eq!(*point2, data3);
-            assert_eq!(*point3, data2);
-            assert_eq!(*point4, data1);
+            let point1 = grid.get(1, 2).unwrap();
+            let point2 = grid.get(3, 1).unwrap();
+            let point3 = grid.get(4, 0).unwrap();
+            assert_eq!(*point1, data1);
+            assert_eq!(*point2, data2);
+            assert_eq!(*point3, data3);
+        }
+
+        it "flips the grid with negative coordinates" {
+            assert!(false, "FIXME: doesn't properly handle negative coordinates.");
         }
 
         it "merges another grid" {

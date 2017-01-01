@@ -557,8 +557,8 @@ pub mod Gen {
                               seed: Vec<usize>,
                               width: u32,
                               height: u32,
-                              min_px: (u32, u32),
-                              max_px: (u32, u32),
+                              min_px: u32,
+                              max_px: u32,
                               max_nearby: (u32, u32),
                               max_edge: (u32, u32),
                               center_overlap: i32)
@@ -566,11 +566,13 @@ pub mod Gen {
             // Set up RNG seed to the supplied seed.
             self.rng.reseed(seed.as_slice());
 
+            let mut max_px = max_px;
+            if min_px >= max_px {
+                max_px = min_px + 1;
+            }
             // Pick values from a range based on supplied params.
-            let min_px = Range::new(min_px.0, min_px.1 + 1).ind_sample(&mut self.rng);
-            let max_px = Range::new(max_px.0, max_px.1 + 1).ind_sample(&mut self.rng);
-            // Total pixels to fill chosen from between min_px and max_px.
             let total_pixels = Range::new(min_px, max_px + 1).ind_sample(&mut self.rng);
+
             // Maximum pixels that are allowed to be "nearby" (corner and adjacent pixels).
             let max_nearby = Range::new(max_nearby.0, max_nearby.1 + 1).ind_sample(&mut self.rng);
             // Maxmimum number of pixels that may be along the right edge.
@@ -683,8 +685,8 @@ pub mod Gen {
         pub fn invader(&mut self,
                        width: u32,
                        height: u32,
-                       min_px: (u32, u32),
-                       max_px: (u32, u32),
+                       min_px: u32,
+                       max_px: u32,
                        max_nearby: (u32, u32),
                        max_edge: (u32, u32),
                        center_overlap: i32)

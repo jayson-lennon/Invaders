@@ -183,6 +183,16 @@ impl Grid {
         }
     }
 
+    /// Removes all elements from the `Grid`.
+    pub fn clear(&mut self) {
+        self.plane = HashMap::new();
+    }
+
+    /// Replace the current `Grid` with new_grid.
+    pub fn replace_all(&mut self, new_grid: Grid) {
+        self.plane = new_grid.plane;
+    }
+
     /// Does the gruntwork for flipping the `Grid`
     fn do_flip(&mut self, flip: Flip) {
         let mut new_plane: HashMap<(i64, i64), Data> = HashMap::new();

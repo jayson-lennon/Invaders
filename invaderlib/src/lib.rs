@@ -309,26 +309,6 @@ mod CellTool {
         surrounding
     }
 
-    pub fn expand_cells(grid: &mut Grid, px_size: u32) {
-        let mut new_grid = Grid::new();
-
-        let mut offset = 0;
-        for (coord, data) in grid.plane.iter() {
-            new_grid.set(coord.0 + offset, coord.1 + offset, *data);
-            for i in 1..px_size + 1 {
-                new_grid.set(coord.0 + offset + (i as i64),
-                             coord.1 + offset + (i as i64),
-                             *data);
-                println!("Create coordinate:({},{})",
-                         coord.0 + offset + (i as i64),
-                         coord.1 + offset + (i as i64));
-                offset += 1
-            }
-        }
-        grid.replace_all(new_grid);
-    }
-
-
     #[cfg(test)]
     mod tests {
         use super::{get_adjacent_coords, is_adjacent, get_surrounding_coords, get_corner_coords,
@@ -391,23 +371,6 @@ mod CellTool {
                 let target = (3,2);
                 let d = distance(source, target);
                 assert_eq!(d, 13_f32.sqrt());
-            }
-
-            it "expands pixels" {
-                let mut grid = Grid::new();
-                let data1 = Data::RGBA(1,1,1,1);
-                let data2 = Data::RGBA(2,2,2,2);
-                grid.set(1,1,data1);
-                grid.set(2,2,data2);
-                expand_cells(&mut grid, 2);
-                let d1_1 = grid.get(1,1).unwrap();
-                let d1_2 = grid.get(1,2).unwrap();
-                let d1_3 = grid.get(2,1).unwrap();
-                let d1_4 = grid.get(2,2).unwrap();
-                assert_eq!(*d1_1, data1);
-                assert_eq!(*d1_2, data1);
-                assert_eq!(*d1_3, data1);
-                assert_eq!(*d1_4, data1);
             }
         }
     }
